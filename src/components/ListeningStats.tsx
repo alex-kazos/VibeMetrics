@@ -50,6 +50,26 @@ const ListeningStats: React.FC<ListeningStatsProps> = ({ timeRange }) => {
     }
   );
 
+  const { data: recentlyPlayed } = useQuery(
+    ['recentlyPlayed', timeRange],
+    async () => {
+      const response = await fetch(
+        'https://api.spotify.com/v1/me/player/recently-played?limit=50',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) throw new Error('Failed to fetch recently played tracks');
+      return response.json();
+    },
+    {
+      enabled: !!token && timeRange === 'short_term',
+      staleTime: 300000,
+    }
+  );
+
   const stats = [
     {
       label: 'Unique Artists',
@@ -65,7 +85,9 @@ const ListeningStats: React.FC<ListeningStatsProps> = ({ timeRange }) => {
     },
     {
       label: 'Total Minutes',
-      value: Math.round((topTracks?.items || []).reduce((acc: number, track: any) => acc + track.duration_ms / 1000 / 60, 0)),
+      value: timeRange === 'short_term' 
+        ? Math.round((recentlyPlayed?.items || []).reduce((acc: number, item: any) => acc + item.track.duration_ms / 1000 / 60, 0))
+        : Math.round((topTracks?.items || []).reduce((acc: number, track: any) => acc + track.duration_ms / 1000 / 60, 0)),
       icon: Clock,
       change: timeRange === 'short_term' ? 'Last 4 Weeks' : timeRange === 'medium_term' ? 'Last 6 Months' : 'All Time',
     },

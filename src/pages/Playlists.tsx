@@ -8,6 +8,7 @@ import { Clock, Play, Music, Headphones, Share2 } from 'lucide-react';
 import PreviewModal from '../components/PreviewModal';
 import PlaylistTracksModal from '../components/PlaylistTracksModal';
 import ShareModal from '../components/ShareModal';
+import NowPlaying from '../components/NowPlaying'; // Import NowPlaying component
 
 interface Track {
   track: {
@@ -381,43 +382,29 @@ const Playlists: React.FC = () => {
         </div>
         {renderGrid()}
       </main>
-
-      {/* Preview Modal */}
-      {previewTrack && (
-        <PreviewModal
-          isOpen={true}
-          onClose={() => setPreviewTrack(null)}
-          trackName={previewTrack.name}
-          artistName={previewTrack.artistName}
-          previewUrl={previewTrack.previewUrl}
-          albumArt={previewTrack.albumArt}
-        />
-      )}
-
-      {/* Playlist Tracks Modal */}
-      {selectedPlaylist && (
-        <PlaylistTracksModal
-          isOpen={true}
-          onClose={() => setSelectedPlaylist(null)}
-          playlistName={selectedPlaylist.name}
-          playlistImage={selectedPlaylist.image}
-          tracks={selectedPlaylist.tracks}
-          onPlayTrack={handlePlayTrack}
-          onPreviewTrack={handlePreviewTrack}
-          playlistId={selectedPlaylist.id}
-        />
-      )}
-
-      {/* Share Modal */}
-      {sharePlaylist && (
-        <ShareModal
-          isOpen={true}
-          onClose={() => setSharePlaylist(null)}
-          title={sharePlaylist.name}
-          url={`https://open.spotify.com/playlist/${sharePlaylist.id}`}
-          description="Check out this playlist on Spotify"
-        />
-      )}
+      <ShareModal
+        isOpen={!!sharePlaylist}
+        onClose={() => setSharePlaylist(null)}
+        title={sharePlaylist?.name || ''}
+        url={`https://open.spotify.com/playlist/${sharePlaylist?.id}`}
+        description="Check out this playlist on Spotify"
+      />
+      <PlaylistTracksModal
+        isOpen={!!selectedPlaylist}
+        onClose={() => setSelectedPlaylist(null)}
+        playlistName={selectedPlaylist?.name || ''}
+        playlistImage={selectedPlaylist?.image}
+        tracks={selectedPlaylist?.tracks || []}
+        onPlayTrack={handlePlayTrack}
+        onPreviewTrack={handlePreviewTrack}
+        playlistId={selectedPlaylist?.id || ''}
+      />
+      <PreviewModal
+        isOpen={!!previewTrack}
+        onClose={() => setPreviewTrack(null)}
+        track={previewTrack}
+      />
+      <NowPlaying accessToken={accessToken} />
     </div>
   );
 };

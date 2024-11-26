@@ -42,25 +42,48 @@ const TopTracks: React.FC<TopTracksProps> = ({ timeRange, selectedGenre }) => {
         track.artists.map(artist => artist.id)
       ))];
 
-      const response = await fetch(
-        `https://api.spotify.com/v1/artists?ids=${artistIds.join(',')}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
+      // Split artist IDs into chunks of 20 (Spotify API limit)
+      const chunks = [];
+      for (let i = 0; i < artistIds.length; i += 20) {
+        chunks.push(artistIds.slice(i, i + 20));
+      }
+
+      // Fetch artists data in batches
+      const artistsData = await Promise.all(
+        chunks.map(async chunk => {
+          const response = await fetch(
+            `https://api.spotify.com/v1/artists?ids=${chunk.join(',')}`,
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            }
+          );
+          
+          if (!response.ok) {
+            console.error('Failed to fetch artists:', response.status);
+            return [];
+          }
+          
+          const data = await response.json();
+          return data.artists;
+        })
       );
+
+      // Combine all artists data
+      const allArtists = artistsData.flat();
       
-      if (!response.ok) return new Map();
-      
-      const data = await response.json();
-      return data.artists.reduce((acc: Map<string, string[]>, artist: any) => {
-        acc.set(artist.id, artist.genres);
+      return allArtists.reduce((acc: Map<string, string[]>, artist: any) => {
+        if (artist && artist.id && artist.genres) {
+          acc.set(artist.id, artist.genres);
+        }
         return acc;
       }, new Map());
     },
     {
       enabled: !!topTracks?.items && !!accessToken,
+      retry: 3,
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
     }
   );
 
