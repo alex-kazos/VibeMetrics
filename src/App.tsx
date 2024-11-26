@@ -1,55 +1,38 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import Dashboard from './pages/Dashboard';
-import SpotifyCallback from './pages/SpotifyCallback';
 import LoginPage from './pages/LoginPage';
+import Dashboard from './pages/Dashboard';
+import Playlists from './pages/Playlists';
+import SpotifyCallback from './pages/SpotifyCallback';
+import useSpotifyAuth from './hooks/useSpotifyAuth';
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('spotify_access_token');
-  const expiration = localStorage.getItem('spotify_token_expiration');
+const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
+  const { isAuthenticated } = useSpotifyAuth();
+  return isAuthenticated ? element : <Navigate to="/" replace />;
+};
 
-  // If no token or expired, redirect to login
-  if (!token || (expiration && Date.now() > parseInt(expiration))) {
-    // Clear tokens if they exist
-    if (token || expiration) {
-      localStorage.removeItem('spotify_access_token');
-      localStorage.removeItem('spotify_token_expiration');
-    }
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-}
-
-function App() {
-  const token = localStorage.getItem('spotify_access_token');
-  const expiration = localStorage.getItem('spotify_token_expiration');
-  const isAuthenticated = token && expiration && Date.now() <= parseInt(expiration);
-
+const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <Router>
         <Routes>
-          <Route 
-            path="/login" 
-            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
+          <Route path="/" element={<LoginPage />} />
+          <Route
+            path="/dashboard"
+            element={<PrivateRoute element={<Dashboard />} />}
+          />
+          <Route
+            path="/playlists"
+            element={<PrivateRoute element={<Playlists />} />}
           />
           <Route path="/callback" element={<SpotifyCallback />} />
-          <Route 
-            path="/dashboard" 
-            element={<ProtectedRoute><Dashboard /></ProtectedRoute>} 
-          />
-          <Route 
-            path="/" 
-            element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} 
-          />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </QueryClientProvider>
   );
-}
+};
 
 export default App;

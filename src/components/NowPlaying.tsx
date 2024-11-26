@@ -2,10 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from 'lucide-react';
 import useSpotifyAuth from '../hooks/useSpotifyAuth';
 
-interface NowPlayingProps {
-  formatDuration: (minutes: number) => string;
-}
-
 interface PlaybackState {
   is_playing: boolean;
   item: {
@@ -23,7 +19,13 @@ interface PlaybackState {
   };
 }
 
-const NowPlaying: React.FC<NowPlayingProps> = ({ formatDuration }) => {
+const formatTime = (ms: number): string => {
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+const NowPlaying: React.FC = () => {
   const { accessToken } = useSpotifyAuth();
   const [playbackState, setPlaybackState] = useState<PlaybackState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +108,6 @@ const NowPlaying: React.FC<NowPlayingProps> = ({ formatDuration }) => {
   }
 
   const progress = (playbackState.progress_ms / playbackState.item.duration_ms) * 100;
-  const totalMinutes = Math.floor(playbackState.item.duration_ms / (1000 * 60));
 
   return (
     <div className="bg-gray-900 border-t border-gray-800 backdrop-blur-lg bg-opacity-95">
@@ -167,8 +168,7 @@ const NowPlaying: React.FC<NowPlayingProps> = ({ formatDuration }) => {
           {/* Volume and Time */}
           <div className="flex items-center space-x-4">
             <div className="text-gray-400 text-sm">
-              {formatDuration(Math.floor(playbackState.progress_ms / (1000 * 60)))} /{' '}
-              {formatDuration(totalMinutes)}
+              {formatTime(playbackState.progress_ms)} / {formatTime(playbackState.item.duration_ms)}
             </div>
             <div className="flex items-center text-gray-400">
               <Volume2 className="w-5 h-5 mr-2" />
