@@ -8,6 +8,7 @@ import NowPlaying from '../components/NowPlaying';
 import useSpotifyAuth from '../hooks/useSpotifyAuth';
 import { formatDuration } from '../utils/formatDuration';
 import { Clock } from 'lucide-react';
+import ListenerPersonality from '../components/ListenerPersonality';
 
 const Dashboard: React.FC = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('short_term');
@@ -80,6 +81,11 @@ const Dashboard: React.FC = () => {
               timeRange={timeRange}
               onGenreClick={handleGenreClick}
               selectedGenre={selectedGenre}
+            />
+            <ListenerPersonality 
+              genres={topTracks?.items.flatMap(track => 
+                track.artists.flatMap(artist => artist.genres || [])
+              ).filter(Boolean) || []}
             />
           </div>
         </div>
