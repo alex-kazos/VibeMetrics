@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32px" height="32px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>Music Note</title>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M24,4 L12,8 L12,22 C10.8954305,22 10,22.8954305 10,24 C10,25.1045695 10.8954305,26 12,26 C13.1045695,26 14,25.1045695 14,24 L14,12 L24,8 L24,18 C22.8954305,18 22,18.8954305 22,20 C22,21.1045695 22.8954305,22 24,22 C25.1045695,22 26,21.1045695 26,20 L26,6 C26,4.8954305 25.1045695,4 24,4 Z" fill="#1DB954" fill-rule="nonzero"/>
+    </g>
+</svg>
