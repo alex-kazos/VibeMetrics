@@ -14,18 +14,18 @@ const Dashboard: React.FC = () => {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const { accessToken } = useSpotifyAuth();
 
-  const { data: recentlyPlayed } = useQuery(
-    ['recentlyPlayed', timeRange],
+  const { data: topTracks } = useQuery(
+    ['topTracks', timeRange],
     async () => {
       const response = await fetch(
-        `https://api.spotify.com/v1/me/player/recently-played?limit=50`,
+        `https://api.spotify.com/v1/me/top/tracks?time_range=${timeRange}&limit=50`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
         }
       );
-      if (!response.ok) throw new Error('Failed to fetch recently played tracks');
+      if (!response.ok) throw new Error('Failed to fetch top tracks');
       return response.json();
     },
     {
@@ -35,13 +35,17 @@ const Dashboard: React.FC = () => {
   );
 
   const totalMinutes = React.useMemo(() => {
-    if (!recentlyPlayed?.items) return 0;
-    const totalMs = recentlyPlayed.items.reduce(
-      (acc: number, item: any) => acc + (item.track?.duration_ms || 0),
+    if (!topTracks?.items) return 0;
+    const totalMs = topTracks.items.reduce(
+      (acc: number, item: any) => acc + (item.duration_ms || 0),
       0
     );
     return Math.floor(totalMs / (1000 * 60));
-  }, [recentlyPlayed]);
+  }, [topTracks]);
+
+  const handleGenreClick = (genre: string | null) => {
+    setSelectedGenre(genre);
+  };
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -74,7 +78,7 @@ const Dashboard: React.FC = () => {
           <div className="space-y-6">
             <GenreChart
               timeRange={timeRange}
-              onGenreClick={setSelectedGenre}
+              onGenreClick={handleGenreClick}
               selectedGenre={selectedGenre}
             />
           </div>

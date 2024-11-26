@@ -4,7 +4,7 @@ import useSpotifyAuth from '../hooks/useSpotifyAuth';
 import Header from '../components/Header';
 import ViewToggle, { ViewMode } from '../components/ViewToggle';
 import { formatDuration } from '../utils/formatDuration';
-import { Clock, Play } from 'lucide-react';
+import { Clock, Play, Music } from 'lucide-react';
 
 interface Playlist {
   id: string;
@@ -18,13 +18,14 @@ interface Playlist {
   owner: {
     display_name: string;
   };
+  uri: string;
 }
 
 const Playlists: React.FC = () => {
   const { accessToken } = useSpotifyAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('grid-3');
 
-  const { data: playlists, isLoading } = useQuery<{ items: Playlist[] }>(
+  const { data: playlists, isLoading, error } = useQuery<{ items: Playlist[] }>(
     'playlists',
     async () => {
       const response = await fetch('https://api.spotify.com/v1/me/playlists', {
@@ -38,6 +39,7 @@ const Playlists: React.FC = () => {
     {
       enabled: !!accessToken,
       staleTime: 300000,
+      retry: 2,
     }
   );
 
@@ -48,20 +50,25 @@ const Playlists: React.FC = () => {
       
       const details = await Promise.all(
         playlists.items.map(async (playlist) => {
-          const response = await fetch(playlist.tracks.href, {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-          if (!response.ok) return null;
-          const data = await response.json();
-          return {
-            id: playlist.id,
-            totalDuration: data.items.reduce(
-              (acc: number, item: any) => acc + (item.track?.duration_ms || 0),
-              0
-            ),
-          };
+          try {
+            const response = await fetch(playlist.tracks.href, {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
+            if (!response.ok) return null;
+            const data = await response.json();
+            return {
+              id: playlist.id,
+              totalDuration: data.items.reduce(
+                (acc: number, item: any) => acc + (item.track?.duration_ms || 0),
+                0
+              ),
+            };
+          } catch (error) {
+            console.error(`Error fetching details for playlist ${playlist.id}:`, error);
+            return null;
+          }
         })
       );
       
@@ -69,6 +76,7 @@ const Playlists: React.FC = () => {
     },
     {
       enabled: !!playlists?.items && !!accessToken,
+      retry: 2,
     }
   );
 
@@ -100,52 +108,69 @@ const Playlists: React.FC = () => {
     }
   };
 
-  const renderGrid = () => (
-    <div className={`grid gap-6 ${
-      viewMode === 'grid-4' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
-      viewMode === 'grid-3' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
-      'grid-cols-1'
-    }`}>
-      {playlists?.items.map((playlist) => (
-        <div
-          key={playlist.id}
-          className={`bg-gray-800 rounded-xl overflow-hidden ${
-            viewMode === 'list' ? 'flex items-center' : ''
-          }`}
-        >
-          <div className={`relative group ${viewMode === 'list' ? 'w-20 h-20' : 'aspect-square'}`}>
-            <img
-              src={playlist.images[0]?.url || '/default-playlist.png'}
-              alt={playlist.name}
-              className="w-full h-full object-cover"
-            />
-            <button
-              onClick={() => handlePlayPlaylist(`spotify:playlist:${playlist.id}`)}
-              className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-            >
-              <Play className="w-12 h-12 text-white" />
-            </button>
-          </div>
-          <div className={`p-4 ${viewMode === 'list' ? 'flex-1 flex items-center justify-between' : ''}`}>
-            <div>
-              <h3 className="font-bold text-white truncate">{playlist.name}</h3>
-              {viewMode !== 'list' && (
-                <p className="text-sm text-gray-400 mt-1 truncate">
-                  {playlist.description || `By ${playlist.owner.display_name}`}
-                </p>
-              )}
-            </div>
-            <div className={`flex items-center text-gray-400 text-sm ${viewMode === 'list' ? 'ml-4' : 'mt-2'}`}>
-              <Clock className="w-4 h-4 mr-1" />
-              <span>{getPlaylistDuration(playlist.id)}</span>
-              <span className="mx-2">•</span>
-              <span>{playlist.tracks.total} tracks</span>
-            </div>
-          </div>
+  const renderGrid = () => {
+    if (!playlists?.items?.length) {
+      return (
+        <div className="text-center text-gray-400 py-12">
+          <Music className="w-16 h-16 mx-auto mb-4 opacity-50" />
+          <p>No playlists found</p>
         </div>
-      ))}
-    </div>
-  );
+      );
+    }
+
+    return (
+      <div className={`grid gap-6 ${
+        viewMode === 'grid-4' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
+        viewMode === 'grid-3' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
+        'grid-cols-1'
+      }`}>
+        {playlists.items.map((playlist) => (
+          <div
+            key={playlist.id}
+            className={`bg-gray-800 rounded-xl overflow-hidden ${
+              viewMode === 'list' ? 'flex items-center' : ''
+            }`}
+          >
+            <div className={`relative group ${viewMode === 'list' ? 'w-20 h-20' : 'aspect-square'}`}>
+              {playlist.images && playlist.images.length > 0 ? (
+                <img
+                  src={playlist.images[0].url}
+                  alt={playlist.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                  <Music className="w-8 h-8 text-gray-500" />
+                </div>
+              )}
+              <button
+                onClick={() => handlePlayPlaylist(`spotify:playlist:${playlist.id}`)}
+                className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <Play className="w-12 h-12 text-white" />
+              </button>
+            </div>
+            <div className={`p-4 ${viewMode === 'list' ? 'flex-1 flex items-center justify-between' : ''}`}>
+              <div>
+                <h3 className="font-bold text-white truncate">{playlist.name}</h3>
+                {viewMode !== 'list' && (
+                  <p className="text-sm text-gray-400 mt-1 truncate">
+                    {playlist.description || `By ${playlist.owner.display_name}`}
+                  </p>
+                )}
+              </div>
+              <div className={`flex items-center text-gray-400 text-sm ${viewMode === 'list' ? 'ml-4' : 'mt-2'}`}>
+                <Clock className="w-4 h-4 mr-1" />
+                <span>{getPlaylistDuration(playlist.id)}</span>
+                <span className="mx-2">•</span>
+                <span>{playlist.tracks.total} tracks</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -165,6 +190,19 @@ const Playlists: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center text-gray-400 py-12">
+            <p>Failed to load playlists. Please try again later.</p>
           </div>
         </main>
       </div>
