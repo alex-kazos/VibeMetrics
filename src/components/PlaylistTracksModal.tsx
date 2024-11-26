@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Play, Headphones, Clock } from 'lucide-react';
+import { X, Play, Headphones, Clock, Share2 } from 'lucide-react';
 import { formatDuration } from '../utils/formatDuration';
+import ShareModal from './ShareModal';
 
 interface Track {
   track: {
@@ -25,6 +26,7 @@ interface PlaylistTracksModalProps {
   tracks: Track[];
   onPlayTrack: (uri: string) => void;
   onPreviewTrack: (track: Track['track']) => void;
+  playlistId: string;
 }
 
 const PlaylistTracksModal: React.FC<PlaylistTracksModalProps> = ({
@@ -35,13 +37,18 @@ const PlaylistTracksModal: React.FC<PlaylistTracksModalProps> = ({
   tracks,
   onPlayTrack,
   onPreviewTrack,
+  playlistId,
 }) => {
+  const [showShareModal, setShowShareModal] = React.useState(false);
+
   if (!isOpen) return null;
 
   const totalDuration = tracks.reduce(
     (acc, { track }) => acc + (track?.duration_ms || 0),
     0
   );
+
+  const playlistUrl = `https://open.spotify.com/playlist/${playlistId}`;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -67,12 +74,20 @@ const PlaylistTracksModal: React.FC<PlaylistTracksModalProps> = ({
               {tracks.length} tracks • {formatDuration(Math.floor(totalDuration / (1000 * 60)))}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <Share2 className="w-6 h-6" />
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Track List */}
@@ -127,6 +142,14 @@ const PlaylistTracksModal: React.FC<PlaylistTracksModalProps> = ({
           </div>
         </div>
       </div>
+
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title={playlistName}
+        url={playlistUrl}
+        description={`A playlist with ${tracks.length} tracks`}
+      />
     </div>
   );
 };

@@ -4,9 +4,10 @@ import useSpotifyAuth from '../hooks/useSpotifyAuth';
 import Header from '../components/Header';
 import ViewToggle, { ViewMode } from '../components/ViewToggle';
 import { formatDuration } from '../utils/formatDuration';
-import { Clock, Play, Music, Headphones } from 'lucide-react';
+import { Clock, Play, Music, Headphones, Share2 } from 'lucide-react';
 import PreviewModal from '../components/PreviewModal';
 import PlaylistTracksModal from '../components/PlaylistTracksModal';
+import ShareModal from '../components/ShareModal';
 
 interface Track {
   track: {
@@ -64,6 +65,7 @@ const Playlists: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid-3');
   const [selectedPlaylist, setSelectedPlaylist] = useState<SelectedPlaylist | null>(null);
   const [previewTrack, setPreviewTrack] = useState<PreviewTrack | null>(null);
+  const [sharePlaylist, setSharePlaylist] = useState<{ id: string; name: string } | null>(null);
 
   const { data: playlists, isLoading, error } = useQuery<{ items: Playlist[] }>(
     'playlists',
@@ -209,7 +211,7 @@ const Playlists: React.FC = () => {
     }
 
     return (
-      <div className={`grid gap-6 ${
+      <div className={`grid gap-4 ${
         viewMode === 'grid-4' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
         viewMode === 'grid-3' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
         'grid-cols-1'
@@ -218,50 +220,114 @@ const Playlists: React.FC = () => {
           <div
             key={playlist.id}
             className={`bg-gray-800 rounded-xl overflow-hidden ${
-              viewMode === 'list' ? 'flex items-center' : ''
-            }`}
+              viewMode === 'list' ? 'flex items-center pl-4' : ''
+            } transition-all duration-200 hover:bg-gray-750`}
           >
-            <div className={`relative group ${viewMode === 'list' ? 'w-20 h-20' : 'aspect-square'}`}>
+            {/* Cover Art Section */}
+            <div className={`relative group ${
+              viewMode === 'list' ? 'w-20 h-20 flex-shrink-0' : 'aspect-square'
+            }`}>
               {playlist.images && playlist.images.length > 0 ? (
                 <img
                   src={playlist.images[0].url}
                   alt={playlist.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-lg"
                 />
               ) : (
-                <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                <div className="w-full h-full bg-gray-700 rounded-lg flex items-center justify-center">
                   <Music className="w-8 h-8 text-gray-500" />
                 </div>
               )}
-              <button
-                onClick={() => handlePlayPlaylist(`spotify:playlist:${playlist.id}`)}
-                className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-              >
-                <Play className="w-12 h-12 text-white" />
-              </button>
-            </div>
-            <div className={`p-4 ${viewMode === 'list' ? 'flex-1 flex items-center justify-between' : ''}`}>
-              <div>
-                <h3 className="font-bold text-white truncate">{playlist.name}</h3>
-                {viewMode !== 'list' && (
-                  <p className="text-sm text-gray-400 mt-1 truncate">
-                    {playlist.description || `By ${playlist.owner.display_name}`}
-                  </p>
-                )}
-              </div>
-              <div className={`flex items-center text-gray-400 text-sm ${viewMode === 'list' ? 'ml-4' : 'mt-2'}`}>
-                <Clock className="w-4 h-4 mr-1" />
-                <span>{getPlaylistDuration(playlist.id)}</span>
-                <span className="mx-2">•</span>
-                <span>{playlist.tracks.total} tracks</span>
+              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-4 rounded-lg">
+                <button
+                  onClick={() => handlePlayPlaylist(`spotify:playlist:${playlist.id}`)}
+                  className="text-white hover:text-green-500 transition-colors"
+                >
+                  <Play className="w-8 h-8" />
+                </button>
+                <button
+                  onClick={() => setSharePlaylist({ id: playlist.id, name: playlist.name })}
+                  className="text-white hover:text-blue-500 transition-colors"
+                >
+                  <Share2 className="w-6 h-6" />
+                </button>
               </div>
             </div>
-            <button
-              onClick={() => handleShowTracks(playlist)}
-              className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              Show tracks
-            </button>
+
+            {/* Content Section */}
+            <div className={`flex ${
+              viewMode === 'list' 
+                ? 'flex-1 flex-row items-center px-6 py-4' 
+                : 'flex-col p-4'
+            }`}>
+              {viewMode === 'list' ? (
+                <>
+                  {/* List View Layout */}
+                  <div className="flex-1 min-w-0 flex items-center">
+                    {/* Title and Description */}
+                    <div className="min-w-0 mr-8">
+                      <h3 className="font-bold text-white text-lg truncate text-left">
+                        {playlist.name}
+                      </h3>
+                      <p className="text-sm text-gray-400 truncate text-left">
+                        {playlist.description || `By ${playlist.owner.display_name}`}
+                      </p>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex items-center text-gray-400 text-sm space-x-6 flex-shrink-0">
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        <span>{getPlaylistDuration(playlist.id)}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Music className="w-4 h-4 mr-1" />
+                        <span>{playlist.tracks.total}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <button
+                    onClick={() => handleShowTracks(playlist)}
+                    className="ml-6 px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
+                  >
+                    Show tracks
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Grid View Layout */}
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-white text-lg truncate text-left">
+                      {playlist.name}
+                    </h3>
+                    <p className="text-sm text-gray-400 truncate text-left mt-1">
+                      {playlist.description || `By ${playlist.owner.display_name}`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center text-gray-400 text-sm space-x-4">
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        <span>{getPlaylistDuration(playlist.id)}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Music className="w-4 h-4 mr-1" />
+                        <span>{playlist.tracks.total}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleShowTracks(playlist)}
+                      className="ml-4 px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                    >
+                      Show tracks
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -338,6 +404,18 @@ const Playlists: React.FC = () => {
           tracks={selectedPlaylist.tracks}
           onPlayTrack={handlePlayTrack}
           onPreviewTrack={handlePreviewTrack}
+          playlistId={selectedPlaylist.id}
+        />
+      )}
+
+      {/* Share Modal */}
+      {sharePlaylist && (
+        <ShareModal
+          isOpen={true}
+          onClose={() => setSharePlaylist(null)}
+          title={sharePlaylist.name}
+          url={`https://open.spotify.com/playlist/${sharePlaylist.id}`}
+          description="Check out this playlist on Spotify"
         />
       )}
     </div>
