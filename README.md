@@ -82,13 +82,15 @@ yarn dev
 ## 📱 Screenshots
 
 ### Dashboard
-![Dashboard](dashboard.png)
+![image](https://github.com/user-attachments/assets/00d81927-4fc7-46d5-87fa-989a6b3873f4)
+
 - View top tracks and artists
 - See listening statistics
 - Analyze genre preferences
 
 ### Playlists
-![Playlists](playlists.png)
+![image](https://github.com/user-attachments/assets/31f9c91b-5159-42bf-83f3-2447b9c2964f)
+
 - Grid and list views
 - Quick access to playlist details
 - Play and share functionality
@@ -119,9 +121,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Tailwind CSS](https://tailwindcss.com/) for the awesome styling framework
 - The React community for incredible tools and libraries
 
-## 📞 Support
-
-For support, email your-email@example.com or open an issue in the repository.
 
 ## 🔮 Future Features
 
