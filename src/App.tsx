@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Playlists from './pages/Playlists';
 import SpotifyCallback from './pages/SpotifyCallback';
 import useSpotifyAuth from './hooks/useSpotifyAuth';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const queryClient = new QueryClient();
 
@@ -16,22 +17,24 @@ const PrivateRoute: React.FC<{ element: React.ReactElement }> = ({ element }) =>
 
 const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route
-            path="/dashboard"
-            element={<PrivateRoute element={<Dashboard />} />}
-          />
-          <Route
-            path="/playlists"
-            element={<PrivateRoute element={<Playlists />} />}
-          />
-          <Route path="/callback" element={<SpotifyCallback />} />
-        </Routes>
-      </Router>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <Routes>
+            <Route path="/" element={<LoginPage />} />
+            <Route
+              path="/dashboard"
+              element={<PrivateRoute element={<Dashboard />} />}
+            />
+            <Route
+              path="/playlists"
+              element={<PrivateRoute element={<Playlists />} />}
+            />
+            <Route path="/callback" element={<SpotifyCallback />} />
+          </Routes>
+        </Router>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

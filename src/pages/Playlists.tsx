@@ -4,93 +4,59 @@ import useSpotifyAuth from '../hooks/useSpotifyAuth';
 import Header from '../components/Header';
 import ViewToggle, { ViewMode } from '../components/ViewToggle';
 import { formatDuration } from '../utils/formatDuration';
-import { Clock, Play, Music, Headphones, Share2 } from 'lucide-react';
+import { Clock, Play, Music, Share2 } from 'lucide-react';
 import PreviewModal from '../components/PreviewModal';
 import PlaylistTracksModal from '../components/PlaylistTracksModal';
 import ShareModal from '../components/ShareModal';
-import NowPlaying from '../components/NowPlaying'; // Import NowPlaying component
+import NowPlaying from '../components/NowPlaying';
+import ErrorBoundary from '../components/ErrorBoundary';
 
-interface Track {
-  track: {
-    id: string;
-    name: string;
-    duration_ms: number;
-    preview_url: string | null;
-    uri: string;
-    artists: Array<{ name: string }>;
-    album: {
-      name: string;
-      images: Array<{ url: string }>;
-    };
-  };
-}
+// ... interfaces remain the same ...
 
-interface Playlist {
-  id: string;
-  name: string;
-  description: string;
-  images: Array<{ url: string }>;
-  tracks: {
-    total: number;
-    href: string;
-  };
-  owner: {
-    display_name: string;
-  };
-  uri: string;
-}
-
-interface PlaylistDetails {
-  id: string;
-  totalDuration: number;
-  tracks: Track[];
-}
-
-interface PreviewTrack {
-  id: string;
-  name: string;
-  artistName: string;
-  previewUrl: string;
-  albumArt?: string;
-}
-
-interface SelectedPlaylist {
-  id: string;
-  name: string;
-  image?: string;
-  tracks: Track[];
-}
-
-const Playlists: React.FC = () => {
+const PlaylistsContent: React.FC = () => {
   const { accessToken } = useSpotifyAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('grid-3');
   const [selectedPlaylist, setSelectedPlaylist] = useState<SelectedPlaylist | null>(null);
   const [previewTrack, setPreviewTrack] = useState<PreviewTrack | null>(null);
   const [sharePlaylist, setSharePlaylist] = useState<{ id: string; name: string } | null>(null);
 
-  const { data: playlists, isLoading, error } = useQuery<{ items: Playlist[] }>(
-    'playlists',
+  // Fetch playlists
+  const { data: playlists, isLoading: playlistsLoading, error: playlistsError } = useQuery<{ items: Playlist[] }>(
+    ['playlists', accessToken],
     async () => {
+      if (!accessToken) {
+        throw new Error('No access token available');
+      }
+
       const response = await fetch('https://api.spotify.com/v1/me/playlists', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      if (!response.ok) throw new Error('Failed to fetch playlists');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to fetch playlists');
+      }
+
       return response.json();
     },
     {
       enabled: !!accessToken,
       staleTime: 300000,
       retry: 2,
+      onError: (error) => {
+        console.error('Error fetching playlists:', error);
+      },
     }
   );
 
+  // Fetch playlist details
   const { data: playlistsDetails } = useQuery<PlaylistDetails[]>(
     ['playlistsDetails', playlists?.items],
     async () => {
       if (!playlists?.items) return [];
-      
+
       const details = await Promise.all(
         playlists.items.map(async (playlist) => {
           try {
@@ -115,7 +81,7 @@ const Playlists: React.FC = () => {
           }
         })
       );
-      
+
       return details.filter(Boolean) as PlaylistDetails[];
     },
     {
@@ -125,7 +91,7 @@ const Playlists: React.FC = () => {
   );
 
   const getPlaylistDuration = (playlistId: string) => {
-    const details = playlistsDetails?.find(d => d?.id === playlistId);
+    const details = playlistsDetails?.find((d) => d?.id === playlistId);
     if (!details) return '...';
     return formatDuration(Math.floor(details.totalDuration / (1000 * 60)));
   };
@@ -161,7 +127,7 @@ const Playlists: React.FC = () => {
     setPreviewTrack({
       id: track.id,
       name: track.name,
-      artistName: track.artists.map(a => a.name).join(', '),
+      artistName: track.artists.map((a) => a.name).join(', '),
       previewUrl: track.preview_url,
       albumArt: track.album.images[0]?.url,
     });
@@ -190,7 +156,7 @@ const Playlists: React.FC = () => {
   };
 
   const handleShowTracks = (playlist: Playlist) => {
-    const details = playlistsDetails?.find(d => d.id === playlist.id);
+    const details = playlistsDetails?.find((d) => d.id === playlist.id);
     if (!details) return;
 
     setSelectedPlaylist({
@@ -201,11 +167,29 @@ const Playlists: React.FC = () => {
     });
   };
 
-  const renderGrid = () => {
-    if (!playlists?.items?.length) {
+  const renderContent = () => {
+    if (playlistsLoading) {
       return (
-        <div className="text-center text-gray-400 py-12">
-          <Music className="w-16 h-16 mx-auto mb-4 opacity-50" />
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+        </div>
+      );
+    }
+
+    if (playlistsError || !playlists?.items) {
+      return (
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+          <p className="text-red-500 mb-4">Error loading playlists</p>
+          <p className="text-gray-400">
+            {playlistsError instanceof Error ? playlistsError.message : 'Please try again later'}
+          </p>
+        </div>
+      );
+    }
+
+    if (!playlists.items.length) {
+      return (
+        <div className="text-center text-gray-400 mt-8">
           <p>No playlists found</p>
         </div>
       );
@@ -217,170 +201,91 @@ const Playlists: React.FC = () => {
         viewMode === 'grid-3' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' :
         'grid-cols-1'
       }`}>
-        {playlists.items.map((playlist) => (
-          <div
-            key={playlist.id}
-            className={`bg-gray-800 rounded-xl overflow-hidden ${
-              viewMode === 'list' ? 'flex items-center pl-4' : ''
-            } transition-all duration-200 hover:bg-gray-750`}
-          >
-            {/* Cover Art Section */}
-            <div className={`relative group ${
-              viewMode === 'list' ? 'w-20 h-20 flex-shrink-0' : 'aspect-square'
-            }`}>
-              {playlist.images && playlist.images.length > 0 ? (
-                <img
-                  src={playlist.images[0].url}
-                  alt={playlist.name}
-                  className="w-full h-full object-cover rounded-lg"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-700 rounded-lg flex items-center justify-center">
-                  <Music className="w-8 h-8 text-gray-500" />
+        {playlists?.items?.map((playlist) => (
+          playlist && (
+            <div
+              key={playlist.id}
+              className={`bg-gray-800 rounded-xl overflow-hidden ${
+                viewMode === 'list' ? 'flex items-center pl-4' : ''
+              } transition-all duration-200 hover:bg-gray-750`}
+            >
+              {/* Cover Art Section */}
+              <div className={`relative group ${
+                viewMode === 'list' ? 'w-20 h-20 flex-shrink-0' : 'aspect-square'
+              }`}>
+                {playlist?.images?.[0]?.url ? (
+                  <img
+                    src={playlist.images[0].url}
+                    alt={playlist.name}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-700 rounded-lg flex items-center justify-center">
+                    <Music className="w-8 h-8 text-gray-500" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-4 rounded-lg">
+                  <button
+                    onClick={() => handlePlayPlaylist(`spotify:playlist:${playlist.id}`)}
+                    className="text-white hover:text-green-500 transition-colors"
+                  >
+                    <Play className="w-8 h-8" />
+                  </button>
+                  <button
+                    onClick={() => setSharePlaylist({ id: playlist.id, name: playlist.name })}
+                    className="text-white hover:text-blue-500 transition-colors"
+                  >
+                    <Share2 className="w-6 h-6" />
+                  </button>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-4 rounded-lg">
-                <button
-                  onClick={() => handlePlayPlaylist(`spotify:playlist:${playlist.id}`)}
-                  className="text-white hover:text-green-500 transition-colors"
-                >
-                  <Play className="w-8 h-8" />
-                </button>
-                <button
-                  onClick={() => setSharePlaylist({ id: playlist.id, name: playlist.name })}
-                  className="text-white hover:text-blue-500 transition-colors"
-                >
-                  <Share2 className="w-6 h-6" />
-                </button>
               </div>
-            </div>
 
-            {/* Content Section */}
-            <div className={`flex ${
-              viewMode === 'list' 
-                ? 'flex-1 flex-row items-center px-6 py-4' 
-                : 'flex-col p-4'
-            }`}>
-              {viewMode === 'list' ? (
-                <>
-                  {/* List View Layout */}
-                  <div className="flex-1 min-w-0 flex items-center">
-                    {/* Title and Description */}
-                    <div className="min-w-0 mr-8">
-                      <h3 className="font-bold text-white text-lg truncate text-left">
-                        {playlist.name}
-                      </h3>
-                      <p className="text-sm text-gray-400 truncate text-left">
-                        {playlist.description || `By ${playlist.owner.display_name}`}
-                      </p>
+              {/* Content Section */}
+              <div className={`flex ${
+                viewMode === 'list' ? 'flex-1 flex-row items-center px-6 py-4' : 'flex-col p-4'
+              }`}>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-white text-lg truncate">{playlist.name}</h3>
+                  <p className="text-sm text-gray-400 truncate">
+                    {playlist.description || `By ${playlist.owner.display_name}`}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center text-gray-400 text-sm space-x-4">
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-1" />
+                      <span>{getPlaylistDuration(playlist.id)}</span>
                     </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center text-gray-400 text-sm space-x-6 flex-shrink-0">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        <span>{getPlaylistDuration(playlist.id)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Music className="w-4 h-4 mr-1" />
-                        <span>{playlist.tracks.total}</span>
-                      </div>
+                    <div className="flex items-center">
+                      <Music className="w-4 h-4 mr-1" />
+                      <span>{playlist.tracks.total}</span>
                     </div>
                   </div>
-
-                  {/* Action Button */}
                   <button
                     onClick={() => handleShowTracks(playlist)}
-                    className="ml-6 px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
+                    className="ml-4 px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                   >
                     Show tracks
                   </button>
-                </>
-              ) : (
-                <>
-                  {/* Grid View Layout */}
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-white text-lg truncate text-left">
-                      {playlist.name}
-                    </h3>
-                    <p className="text-sm text-gray-400 truncate text-left mt-1">
-                      {playlist.description || `By ${playlist.owner.display_name}`}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center text-gray-400 text-sm space-x-4">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        <span>{getPlaylistDuration(playlist.id)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Music className="w-4 h-4 mr-1" />
-                        <span>{playlist.tracks.total}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleShowTracks(playlist)}
-                      className="ml-4 px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
-                    >
-                      Show tracks
-                    </button>
-                  </div>
-                </>
-              )}
+                </div>
+              </div>
             </div>
-          </div>
+          )
         ))}
       </div>
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-800 rounded w-1/4"></div>
-            <div className="grid grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-gray-800 rounded-xl">
-                  <div className="aspect-square bg-gray-700"></div>
-                  <div className="p-4 space-y-2">
-                    <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-700 rounded w-1/2"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-900">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center text-gray-400 py-12">
-            <p>Failed to load playlists. Please try again later.</p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-900 text-white">
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-white">Your Playlists</h1>
+          <h1 className="text-2xl font-bold">Your Playlists</h1>
           <ViewToggle currentView={viewMode} onViewChange={setViewMode} />
         </div>
-        {renderGrid()}
+        {renderContent()}
       </main>
       <ShareModal
         isOpen={!!sharePlaylist}
@@ -406,6 +311,14 @@ const Playlists: React.FC = () => {
       />
       <NowPlaying accessToken={accessToken} />
     </div>
+  );
+};
+
+const Playlists: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <PlaylistsContent />
+    </ErrorBoundary>
   );
 };
 
