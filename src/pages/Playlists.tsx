@@ -155,16 +155,30 @@ const PlaylistsContent: React.FC = () => {
     }
   };
 
-  const handleShowTracks = (playlist: Playlist) => {
-    const details = playlistsDetails?.find((d) => d.id === playlist.id);
-    if (!details) return;
+  const handleShowTracks = async (playlist: Playlist) => {
+    try {
+      const response = await fetch(`https://api.spotify.com/v1/playlists/${playlist.id}/tracks`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    setSelectedPlaylist({
-      id: playlist.id,
-      name: playlist.name,
-      image: playlist.images[0]?.url,
-      tracks: details.tracks,
-    });
+      if (!response.ok) {
+        throw new Error('Failed to fetch playlist tracks');
+      }
+
+      const data = await response.json();
+      
+      setSelectedPlaylist({
+        id: playlist.id,
+        name: playlist.name,
+        image: playlist.images[0]?.url,
+        tracks: data.items,
+      });
+    } catch (error) {
+      console.error('Error fetching playlist tracks:', error);
+      alert('Failed to load playlist tracks. Please try again.');
+    }
   };
 
   const renderContent = () => {
