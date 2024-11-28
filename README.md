@@ -125,7 +125,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🔮 Future Features
 
 - Enhanced music recommendations
-- Social sharing features
-- Advanced playlist management
-- More detailed listening statistics
-- Collaborative playlist features
+- Social Community Features
