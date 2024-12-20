@@ -2,7 +2,7 @@
 
 A modern, feature-rich dashboard for Spotify users that provides deep insights into their music listening habits and preferences. Built with React, TypeScript, and Tailwind CSS.
 
-![image](https://github.com/user-attachments/assets/37d9e8c4-f97c-4615-b642-ad0ddbec5291)
+![image](https://github.com/user-attachments/assets/90d2f6c5-4353-4354-bad0-9c856136acef)
 
 
 ## ✨ Features
@@ -82,7 +82,7 @@ yarn dev
 ## 📱 Screenshots
 
 ### Dashboard
-![image](https://github.com/user-attachments/assets/00d81927-4fc7-46d5-87fa-989a6b3873f4)
+![image](https://github.com/user-attachments/assets/b034d129-3d5e-4d66-ae85-864e41fb07c1)
 
 - View top tracks and artists
 - See listening statistics
