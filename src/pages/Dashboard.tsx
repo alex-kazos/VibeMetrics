@@ -9,6 +9,9 @@ import useSpotifyAuth from '../hooks/useSpotifyAuth';
 import { formatDuration } from '../utils/formatDuration';
 import { Clock } from 'lucide-react';
 import ListenerPersonality from '../components/ListenerPersonality';
+import ListeningTimeline from '../components/ListeningTimeline';
+import ListeningRepetition from '../components/ListeningRepetition';
+import ArtistStats from '../components/ArtistStats';
 
 const Dashboard: React.FC = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('short_term');
@@ -34,6 +37,43 @@ const Dashboard: React.FC = () => {
       staleTime: 300000,
     }
   );
+
+  const { data: topArtists } = useQuery(
+    ['topArtists', timeRange],
+    async () => {
+      const response = await fetch(
+        `https://api.spotify.com/v1/me/top/artists?time_range=${timeRange}&limit=10`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      if (!response.ok) throw new Error('Failed to fetch top artists');
+      const data = await response.json();
+      return data.items?.map((artist: any) => ({
+        name: artist.name,
+        playCount: Math.floor(Math.random() * 100) + 50, // This would ideally come from your backend
+        imageUrl: artist.images[0]?.url,
+      })) || [];
+    },
+    {
+      enabled: !!accessToken,
+      staleTime: 300000,
+    }
+  );
+
+  // Mock data for timeline - this would ideally come from your backend
+  const timelineData = {
+    timestamps: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+    counts: Array.from({ length: 24 }, () => Math.floor(Math.random() * 100)),
+  };
+
+  // Mock data for repetition - this would ideally come from your backend
+  const repetitionData = {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    counts: Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
+  };
 
   const totalMinutes = React.useMemo(() => {
     if (!topTracks?.items) return 0;
@@ -69,6 +109,11 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <ListeningTimeline data={timelineData} />
+          <ListeningRepetition data={repetitionData} />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3">
             <TopTracks
@@ -89,6 +134,12 @@ const Dashboard: React.FC = () => {
             />
           </div>
         </div>
+
+        {topArtists && (
+          <div className="mt-6">
+            <ArtistStats topArtists={topArtists} />
+          </div>
+        )}
       </main>
       <NowPlaying accessToken={accessToken} />
     </div>
