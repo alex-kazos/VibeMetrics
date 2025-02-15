@@ -12,6 +12,15 @@ import ListenerPersonality from '../components/ListenerPersonality';
 import ListeningTimeline from '../components/ListeningTimeline';
 import ListeningRepetition from '../components/ListeningRepetition';
 import ArtistStats from '../components/ArtistStats';
+import { parseISO, format, startOfDay, endOfDay } from 'date-fns';
+
+interface RecentTrack {
+  played_at: string;
+  track: {
+    duration_ms: number;
+    name: string;
+  };
+}
 
 const Dashboard: React.FC = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('short_term');
@@ -63,17 +72,56 @@ const Dashboard: React.FC = () => {
     }
   );
 
-  // Mock data for timeline - this would ideally come from your backend
-  const timelineData = {
-    timestamps: Array.from({ length: 24 }, (_, i) => `${i}:00`),
-    counts: Array.from({ length: 24 }, () => Math.floor(Math.random() * 100)),
-  };
+  const { data: recentTracks } = useQuery(
+    ['recentTracks'],
+    async () => {
+      const response = await fetch(
+        'https://api.spotify.com/v1/me/player/recently-played?limit=50',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+      if (!response.ok) throw new Error('Failed to fetch recent tracks');
+      return response.json();
+    },
+    {
+      enabled: !!accessToken,
+      staleTime: 300000,
+    }
+  );
 
-  // Mock data for repetition - this would ideally come from your backend
-  const repetitionData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    counts: Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
-  };
+  const timelineData = React.useMemo(() => {
+    const timestamps = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+    const counts = new Array(24).fill(0);
+
+    if (recentTracks?.items) {
+      recentTracks.items.forEach((item: RecentTrack) => {
+        const playedAt = parseISO(item.played_at);
+        const hour = playedAt.getHours();
+        counts[hour] += Math.ceil(item.track.duration_ms / (1000 * 60)); // Convert to minutes
+      });
+    }
+
+    return { timestamps, counts };
+  }, [recentTracks]);
+
+  const repetitionData = React.useMemo(() => {
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const counts = new Array(7).fill(0);
+
+    if (recentTracks?.items) {
+      recentTracks.items.forEach((item: RecentTrack) => {
+        const playedAt = parseISO(item.played_at);
+        const dayIndex = playedAt.getDay();
+        // Convert to minutes and add to the appropriate day
+        counts[dayIndex] += Math.ceil(item.track.duration_ms / (1000 * 60));
+      });
+    }
+
+    return { labels, counts };
+  }, [recentTracks]);
 
   const totalMinutes = React.useMemo(() => {
     if (!topTracks?.items) return 0;
